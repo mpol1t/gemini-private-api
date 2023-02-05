@@ -1,0 +1,1 @@
+NEW_ORDER: str = '/v1/order/new'

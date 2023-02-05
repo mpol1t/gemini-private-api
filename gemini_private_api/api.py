@@ -1,9 +1,77 @@
+from base64 import b64encode
+from hashlib import sha384
+from hmac import new
+from json import dumps
+from time import time
+from typing import Dict, Any
+
+from requests import post
+
+from gemini_private_api.private_endpoints import NEW_ORDER
+
+BASE_URL: str = 'https://api.gemini.com'
+BASE_SANDBOX_URL: str = 'https://api.sandbox.gemini.com'
+
+
 class GeminiPrivateAPI:
-    def __int__(self):
+    def __init__(self, gemini_api_key: str, gemini_api_secret: str):
+        self.gemini_api_key: str = gemini_api_key
+        self.gemini_api_secret: bytes = gemini_api_secret.encode()
+
+    def _get_request_headers(self, encoded_payload: bytes, signature: str):
+        return {
+            'Content-Type':       "text/plain",
+            'Content-Length':     "0",
+            'X-GEMINI-APIKEY':    self.gemini_api_key,
+            'X-GEMINI-PAYLOAD':   encoded_payload,
+            'X-GEMINI-SIGNATURE': signature,
+            'Cache-Control':      "no-cache"
+        }
+
+    @staticmethod
+    def _get_nonce():
+        return time()
+
+    def _post(self, url: str, payload: Dict[str, Any]):
+        encoded_payload: bytes = b64encode(dumps(payload).encode())
+        signature: str = new(self.gemini_api_secret, encoded_payload, sha384).hexdigest()
+
+        return post(
+            url,
+            data=None,
+            headers=self._get_request_headers(
+                encoded_payload,
+                signature
+            )
+        )
+
+    @classmethod
+    def _update_options(cls, options):
         pass
 
-    def new_order(self):
-        pass
+    def new_order(
+            self,
+            symbol: str,
+            amount: float,
+            price: float,
+            side: str,
+            order_type: str,
+            sandbox: bool = False,
+            **kwargs
+    ):
+        return self._post(
+            url=BASE_SANDBOX_URL if sandbox else BASE_URL,
+            payload={
+                'request': NEW_ORDER,
+                'nonce':   self._get_nonce(),
+                'symbol':  symbol,
+                'amount':  str(amount),
+                'price':   str(price),
+                'side':    side,
+                'type':    order_type,
+                **kwargs
+            }
+        )
 
     def cancel_order(self):
         pass
